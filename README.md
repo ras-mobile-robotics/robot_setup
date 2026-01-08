@@ -1,4 +1,24 @@
-# TurtleBot 4 Status Monitor for Tmux
+# 1. Setup Config
+
+## Backup and Replace bashrc
+```bash
+cp ~/.bashrc ~/.bashrc_$(date +%Y%m%d_%H%M%S) 
+cp bashrc ~/.bashrc
+```
+
+## Backup and Replace tmux conf
+```bash
+cp ~/.tmux.conf ~/.tmux_$(date +%Y%m%d_%H%M%S) 
+cp tmux.conf ~/.tmux.conf
+```
+
+## Backup and Replace vimrc
+```bash
+cp ~/.vimrc ~/.vimrc_$(date +%Y%m%d_%H%M%S) 
+cp vimrc ~/.vimrc
+```
+
+# 2. TurtleBot 4 Status Monitor for Tmux
 
 This setup allows your `tmux` status bar to display the TurtleBot 4 battery percentage and docking status using Nerd Font icons. It uses a **systemd timer** to fetch data in the background every minute, ensuring the tmux interface never lags.
 
