@@ -2,8 +2,8 @@
     "profiles": [
         {
             "name": "Lab_Network",
-            "ssid": "Clearpath_Lab",
-            "password": "robotics_rule",
+            "ssid": "RAS598-5G",
+            "password": "",
             "mode": "Client",
             "dhcp": true,
             "ip": "192.168.0.50/24"
