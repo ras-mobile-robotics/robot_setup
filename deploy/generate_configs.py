@@ -30,6 +30,7 @@ def generate_configs():
         bot_id_str = f"{i:02d}"
         bot_id_int = i
         hostname = f"turtlebot{bot_id_str}"
+        namespace = f"/robot_{bot_id_str}"
         
         # Calculate Static IPs
         wifi_ip = f"{args.wifi_base}{args.wifi_start + i - 1}"
@@ -59,13 +60,26 @@ chpasswd:
     ubuntu:turtlebot
   expire: False
 
+ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
+
+system_info:
+  default_user:
+    name: ubuntu
+
 runcmd:
+  - test -f /etc/ssh/ssh_host_rsa_key || dpkg-reconfigure openssh-server
   - echo "{bot_id_str}" >| /home/ubuntu/.turtlebot_id
   - chown ubuntu:ubuntu /home/ubuntu/.turtlebot_id
   - sed -i 's/"ssid": "TurtleBot_AP_"/"ssid": "TurtleBot_AP_{bot_id_int}"/' /home/ubuntu/wifi_configs.json
   - sed -i 's/export ROS_DOMAIN_ID=.*/export ROS_DOMAIN_ID="{bot_id_int}"/' /etc/turtlebot4/setup.bash
-  - sed -i 's|export ROBOT_NAMESPACE=.*|export ROBOT_NAMESPACE="/robot_{bot_id_str}"|' /etc/turtlebot4/setup.bash
+  - sed -i 's|export ROBOT_NAMESPACE=.*|export ROBOT_NAMESPACE="{namespace}"|' /etc/turtlebot4/setup.bash
   - chown ubuntu:ubuntu /home/ubuntu/wifi_configs.json
+  - sleep 45
+  - bash -c 'for i in {{1..10}}; do if ping -c 1 192.168.186.2; then echo "Create 3 Base found!"; break; fi; echo "Waiting for Base... attempt $i"; sleep 5; done'
+  - curl -X POST -d "ros_domain_id={bot_id_int}&ros_namespace={namespace}/_do_not_use&rmw_implementation=rmw_fastrtps_cpp&fast_discovery_server_value=192.168.186.3:11811&fast_discovery_server_enabled=true" http://192.168.186.2/ros-config-save-main
+  - sleep 12
+  - curl -X POST http://192.168.186.2/api/reboot
+  - ros2 daemon stop
 """
 
         # 2. Generate network-config
