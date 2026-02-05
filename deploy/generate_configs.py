@@ -11,15 +11,15 @@ def generate_configs():
     
     # LAN Configuration Arguments
     parser.add_argument("--dhcp-lan", action="store_true", help="Use DHCP for LAN/Ethernet")
-    parser.add_argument("--lan-base", default="192.168.1.", help="Base IP for LAN")
+    parser.add_argument("--lan-base", default="192.168.50.", help="Base IP for LAN")
     parser.add_argument("--lan-start", type=int, default=201, help="Starting suffix for LAN IP")
     
     # WIFI Configuration Arguments
-    parser.add_argument("--wifi-base", default="192.168.1.", help="Base IP for WIFI")
+    parser.add_argument("--wifi-base", default="192.168.50.", help="Base IP for WIFI")
     parser.add_argument("--wifi-start", type=int, default=101, help="Starting suffix for WIFI IP")
     
     # General Network Defaults
-    parser.add_argument("--gateway", default="192.168.1.1", help="Gateway IP")
+    parser.add_argument("--gateway", default="192.168.50.1", help="Gateway IP")
 
     args = parser.parse_args()
 
@@ -60,7 +60,7 @@ chpasswd:
   expire: False
 
 runcmd:
-  - echo "{bot_id_str}" > /home/ubuntu/.turtlebot_id
+  - echo "{bot_id_str}" >| /home/ubuntu/.turtlebot_id
   - chown ubuntu:ubuntu /home/ubuntu/.turtlebot_id
   - sed -i 's/"ssid": "TurtleBot_AP_"/"ssid": "TurtleBot_AP_{bot_id_int}"/' /home/ubuntu/wifi_configs.json
   - sed -i 's/export ROS_DOMAIN_ID=.*/export ROS_DOMAIN_ID="{bot_id_int}"/' /etc/turtlebot4/setup.bash
