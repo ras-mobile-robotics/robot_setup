@@ -12,7 +12,6 @@ import os
 
 class RobotController(Node):
     def __init__(self):
-
         # Get robot namespace from stored file
         robot_id = self.get_robot_id()
         namespace = f"robot_{robot_id}"
@@ -35,6 +34,11 @@ class RobotController(Node):
         self.last_button_state = False
         self.last_press_time = 0.0
         
+        # --- Battery Alert Variables ---
+        self.current_battery_percentage = 1.0 
+        self.is_charging = False               # Tracks if robot is on dock
+        self.battery_threshold = 0.20          
+        
         # --- Config ---
         self.python_executable = sys.executable
         self.target_script = "/home/ubuntu/robot_setup/change_wifi.py"
@@ -43,7 +47,11 @@ class RobotController(Node):
         self.required_presses = 5
         self.button_timeout = 3.0 
 
-        self.get_logger().info('Jazzy Manager Active: Waiting for Create 3 heartbeat...')
+        # --- Timers ---
+        # Check battery level every 5 minutes (300 seconds)
+        self.battery_alert_timer = self.create_timer(300.0, self.check_battery_alert)
+
+        self.get_logger().info(f'Jazzy Manager [{namespace}] Active: Waiting for heartbeat...')
     
     def get_robot_id(self):
         id_file = "/home/ubuntu/.turtlebot_id"
@@ -52,13 +60,31 @@ class RobotController(Node):
                 return f.read().strip()
         return "XX"
 
-    def battery_callback(self, _):
-        """Initial startup: plays startup chime and circles pink."""
+    def battery_callback(self, msg):
+        """Updates battery state and tracks charging status."""
+        self.current_battery_percentage = msg.percentage
+        
+        # Status 1 = Charging, Status 4 = Full (both mean it is on the dock)
+        # Status 2 = Discharging, Status 3 = Not Charging (meaning it's off dock)
+        self.is_charging = msg.power_supply_status in [BatteryState.POWER_SUPPLY_STATUS_CHARGING, 
+                                                       BatteryState.POWER_SUPPLY_STATUS_FULL]
+
         if not self.startup_done:
             self.startup_done = True
-            self.get_logger().info('Robot up! Playing chime.')
+            self.get_logger().info('Communication established! Playing chime.')
             self.play_startup_sound()
             self.run_circle_animation(color="pink", duration_sec=4.0)
+
+    def check_battery_alert(self):
+        """Timer callback to warn if battery is low, but only if NOT charging."""
+        if self.is_charging:
+            # self.get_logger().info('Battery low but charging/docked. Muting alert.')
+            return
+
+        if self.current_battery_percentage <= self.battery_threshold:
+            self.get_logger().warn(f'LOW BATTERY ALERT: {self.current_battery_percentage*100:.1f}%')
+            self.play_low_battery_sound()
+            self.run_circle_animation(color="red", duration_sec=2.0)
 
     def button_callback(self, msg):
         """Monitors for 5 presses on Button 1."""
@@ -77,9 +103,8 @@ class RobotController(Node):
             self.last_press_time = now
 
             if self.press_count == self.required_presses:
-                self.get_logger().info('5 presses detected! Triggering Red alert and WiFi script.')
+                self.get_logger().info('5 presses detected! Triggering WiFi script.')
                 self.play_long_beep()
-                # Run red animation in a non-blocking way if possible, or just before script
                 self.run_circle_animation(color="green", duration_sec=5.0)
                 self.execute_wifi_script()
                 self.press_count = 0 
@@ -87,20 +112,8 @@ class RobotController(Node):
         self.last_button_state = current_state
 
     def play_startup_sound(self):
-        # --- NEW CODE START ---
-        # Wait up to 10 seconds for the Create 3 to subscribe to the audio topic
-        attempts = 0
-        while self.audio_pub.get_subscription_count() == 0 and attempts < 20:
-            self.get_logger().info('Waiting for audio subscriber...')
-            time.sleep(0.5)
-            attempts += 1
-        
-        if self.audio_pub.get_subscription_count() == 0:
-            self.get_logger().error('No audio subscriber found! Chime skipped.')
+        if not self.wait_for_audio_subscriber():
             return
-        # --- NEW CODE END ---
-
-        time.sleep(0.5) # Short grace period after connection
 
         audio_msg = AudioNoteVector()
         audio_msg.header.stamp = self.get_clock().now().to_msg()
@@ -113,25 +126,37 @@ class RobotController(Node):
         audio_msg.notes = notes
         self.audio_pub.publish(audio_msg)
 
-    def play_long_beep(self):
-        time.sleep(0.25)
+    def play_low_battery_sound(self):
+        audio_msg = AudioNoteVector()
+        audio_msg.header.stamp = self.get_clock().now().to_msg()
+        notes = [
+            AudioNote(frequency=440, max_runtime=Duration(sec=0, nanosec=200000000)),
+            AudioNote(frequency=330, max_runtime=Duration(sec=0, nanosec=400000000)),
+        ]
+        audio_msg.notes = notes
+        self.audio_pub.publish(audio_msg)
 
+    def play_long_beep(self):
         audio_msg = AudioNoteVector()
         audio_msg.header.stamp = self.get_clock().now().to_msg()
         long_beep = AudioNote(frequency=500, max_runtime=Duration(sec=2, nanosec=0))
         audio_msg.notes = [long_beep]
         self.audio_pub.publish(audio_msg)
 
+    def wait_for_audio_subscriber(self):
+        attempts = 0
+        while self.audio_pub.get_subscription_count() == 0 and attempts < 20:
+            time.sleep(0.5)
+            attempts += 1
+        return self.audio_pub.get_subscription_count() > 0
+
     def reset_leds(self):
-        """Resets the LED ring to system control."""
         msg = LightringLeds()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.override_system = False
         self.lightring_pub.publish(msg)
-        self.get_logger().info('LEDs reset to system control.')
 
     def run_circle_animation(self, color, duration_sec):
-        """Generalized animation for pink (startup) or red (button trigger)."""
         start_time = time.time()
         led_index = 0
         
@@ -152,22 +177,15 @@ class RobotController(Node):
             msg.leds = leds
             self.lightring_pub.publish(msg)
             led_index = (led_index + 1) % 6
-            time.sleep(0.06) # Slightly faster rotation for red alert
+            time.sleep(0.06)
         
         self.reset_leds()
 
     def execute_wifi_script(self):
         try:
-            # We explicitly call sudo here. 
-            # Thanks to the visudo change, it won't ask for a password.
             cmd = f"sudo {self.python_executable} {self.target_script} {self.target_args}"
-            
             self.get_logger().info(f'Launching WiFi script: {cmd}')
-            
-            # Using Popen allows the daemon to keep running (or exit cleanly) 
-            # while the other script handles the network/reboot.
             subprocess.Popen(cmd, shell=True)
-            
         except Exception as e:
             self.get_logger().error(f'Failed to launch WiFi script: {e}')
     
