@@ -83,7 +83,7 @@ class RobotController(Node):
             t_stamp = time.strftime("%H:%M")
             
             # Combine for TMUX: Icon Percent | Status | Time
-            full_str = f"{batt_icon} {percent}% │ {dock_str} │ {t_stamp}\n"
+            full_str = f"< {batt_icon} {percent}% │ {dock_str} (󰑐 {t_stamp}) >\n"
             
             with open(self.status_file, 'w') as f:
                 f.write(full_str)
