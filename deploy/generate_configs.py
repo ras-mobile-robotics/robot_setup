@@ -60,7 +60,7 @@ chpasswd:
   expire: False
 
 runcmd:
-  - echo "{bot_id_int}" > /home/ubuntu/.turtlebot_id
+  - echo "{bot_id_str}" > /home/ubuntu/.turtlebot_id
   - chown ubuntu:ubuntu /home/ubuntu/.turtlebot_id
   - sed -i 's/"ssid": "TurtleBot_AP_"/"ssid": "TurtleBot_AP_{bot_id_int}"/' /home/ubuntu/wifi_configs.json
   - sed -i 's/export ROS_DOMAIN_ID=.*/export ROS_DOMAIN_ID="{bot_id_int}"/' /etc/turtlebot4/setup.bash

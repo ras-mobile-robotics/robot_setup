@@ -8,21 +8,26 @@ import sys
 from sensor_msgs.msg import BatteryState
 from irobot_create_msgs.msg import LightringLeds, LedColor, AudioNoteVector, AudioNote, InterfaceButtons
 from builtin_interfaces.msg import Duration
+import os
 
 class RobotController(Node):
     def __init__(self):
-        super().__init__('robot_unified_controller')
+
+        # Get robot namespace from stored file
+        robot_id = self.get_robot_id()
+        namespace = f"robot_{robot_id}"
+        super().__init__('robot_hw_daemon', namespace=namespace)
 
         # --- Publishers ---
-        self.lightring_pub = self.create_publisher(LightringLeds, '/robot_0/cmd_lightring', 10)
-        self.audio_pub = self.create_publisher(AudioNoteVector, '/robot_0/cmd_audio', 10)
+        self.lightring_pub = self.create_publisher(LightringLeds, 'cmd_lightring', 10)
+        self.audio_pub = self.create_publisher(AudioNoteVector, 'cmd_audio', 10)
 
         # --- Subscriptions ---
         self.battery_sub = self.create_subscription(
-            BatteryState, '/robot_0/battery_state', self.battery_callback, 10)
+            BatteryState, 'battery_state', self.battery_callback, 10)
         
         self.button_sub = self.create_subscription(
-            InterfaceButtons, '/robot_0/interface_buttons', self.button_callback, 10)
+            InterfaceButtons, 'interface_buttons', self.button_callback, 10)
 
         # --- State Variables ---
         self.startup_done = False
@@ -39,6 +44,13 @@ class RobotController(Node):
         self.button_timeout = 3.0 
 
         self.get_logger().info('Jazzy Manager Active: Waiting for Create 3 heartbeat...')
+    
+    def get_robot_id(self):
+        id_file = "/home/ubuntu/.turtlebot_id"
+        if os.path.exists(id_file):
+            with open(id_file, 'r') as f:
+                return f.read().strip()
+        return "XX"
 
     def battery_callback(self, _):
         """Initial startup: plays startup chime and circles pink."""
