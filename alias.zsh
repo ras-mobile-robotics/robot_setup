@@ -81,6 +81,7 @@ check-ros() {
     printf "%-22s \e[1;37m%s\e[0m\n" "ROS Distro:" "$ROS_DISTRO"
     printf "%-22s %s\n" "RMW Implementation:" "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp (default)}"
     printf "%-22s %s\n" "Domain ID:" "${ROS_DOMAIN_ID:-0}"
+    [ -f /home/ubuntu/.turtlebot_id ] && printf "%-22s %s\n" "Turtlebot ID: $(cat /home/ubuntu/.turtlebot_id)"
     
     # Discovery Server Check
     if [ -n "$ROS_DISCOVERY_SERVER" ]; then
