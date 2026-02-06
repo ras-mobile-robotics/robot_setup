@@ -27,9 +27,16 @@ cp wifi_configs_sample.json /home/ubuntu/wifi_configs.json
 
 # 6. Clear Shell History, logs and APT cache to save space
 echo "--> Shrinking image size (logs and cache)..."
-history -c && history -w && cat /dev/null > ~/.bash_history
+
+history -c && history -w
+rm -f /home/ubuntu/.bash_history
+
 sudo apt-get clean
+
 sudo find /var/log -type f -exec truncate -s 0 {} \;
+
+sudo journalctl --flush --rotate
+sudo journalctl --vacuum-time=1s
 
 echo "====================================================="
 echo "DONE: Robot SD Prepared."
