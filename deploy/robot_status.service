@@ -1,8 +1,0 @@
-[Unit]
-Description=Fetch Robot Status
-
-[Service]
-Type=oneshot
-User=ubuntu
-ExecStart=/bin/bash /home/ubuntu/robot_setup/fetch_robot_stats.sh
-
