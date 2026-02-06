@@ -37,6 +37,21 @@ cp wifi_configs_sample.json /home/ubuntu/wifi_configs.json
 # Add "source ~/robot_setup/alias.zsh" to  bashrc if it does not exist
 grep -qxF 'source ~/robot_setup/alias.zsh' ~/.bashrc || echo 'source ~/robot_setup/alias.zsh' >> ~/.bashrc
 
+# Create Setup
+mkdir ~/.create_firmware
+cd ~/.create_firmware
+
+# Download Create 3 I.0.0 Fast DDS Firmware that works with ROS2 Jazzy
+wget https://github.com/iRobotEducation/create3_docs/releases/download/I.0.0/Create3-I.0.0.FastDDS.swu
+
+# Get the install script
+wget https://github.com/turtlebot/turtlebot4_setup/blob/jazzy/scripts/create_update.sh
+chmod +x create_update.sh
+
+# Setup Create base with new firmware
+# Done in runcmd section of user-data (check generate_configs.py)
+# curl -X POST --data-binary @/home/ubuntu/.create_firmware/Create3-I.0.0.FastDDS.swu http://192.168.186.2/api/firmware-update
+
 # change_wifi.py needs sudo priveleges to apply netplan and reboot computer
 echo "=============================================="
 echo "Add the following line to visudo:"

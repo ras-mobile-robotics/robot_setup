@@ -74,12 +74,29 @@ runcmd:
   - sed -i 's/export ROS_DOMAIN_ID=.*/export ROS_DOMAIN_ID="{bot_id_int}"/' /etc/turtlebot4/setup.bash
   - sed -i 's|export ROBOT_NAMESPACE=.*|export ROBOT_NAMESPACE="{namespace}"|' /etc/turtlebot4/setup.bash
   - chown ubuntu:ubuntu /home/ubuntu/wifi_configs.json
-  - sleep 45
+  - echo "(1/6) Waiting for create 3 to switch on for the first time..." >| /home/ubuntu/.cloud_init_status
+  - sleep 120
   - bash -c 'for i in {{1..10}}; do if ping -c 1 192.168.186.2; then echo "Create 3 Base found!"; break; fi; echo "Waiting for Base... attempt $i"; sleep 5; done'
+  - echo "(2/6) Starting Firmware Upload I.0.0..." >| /home/ubuntu/.cloud_init_status
+  - echo "Starting Firmware Upload I.0.0..."
+  - curl -X POST --data-binary @/home/ubuntu/.create_firmware/Create3-I.0.0.FastDDS.swu http://192.168.186.2/api/firmware-update
+  - echo "Firmware file sent. Waiting for internal flashing..."
+  - echo "(3/6) Firmware file sent. Waiting for internal flashing..." >| /home/ubuntu/.cloud_init_status
+  - sleep 300
+  - echo "Verifying firmware version I.0.0.FastDDS is active..."
+  - echo "(4/6) Verifying firmware version I.0.0.FastDDS is active..." >| /home/ubuntu/.cloud_init_status
+  - bash -c 'while ! curl -s http://192.168.186.2/api/about | grep -i "version=.I.0.0.FastDDS."; do echo "Waiting for new firmware... (Check web UI)"; sleep 30; done'
+  - echo "Firmware Verified! Waiting to reboot..."
+  - echo "(5/6) Firmware Verified! Waiting to reboot..." >| /home/ubuntu/.cloud_init_status
+  - sleep 65
+  - bash -c 'for i in {{1..10}}; do if ping -c 1 192.168.186.2; then echo "Create 3 Base found!"; break; fi; echo "Waiting for Base... attempt $i"; sleep 5; done'
+  - echo "Applying ROS 2 Discovery Server Config..."
+  - echo "(6/6) Applying ROS 2 Discovery Server Config.." >| /home/ubuntu/.cloud_init_status
   - curl -X POST -d "ros_domain_id={bot_id_int}&ros_namespace={namespace}/_do_not_use&rmw_implementation=rmw_fastrtps_cpp&fast_discovery_server_value=192.168.186.3:11811&fast_discovery_server_enabled=true" http://192.168.186.2/ros-config-save-main
-  - sleep 12
+  - sleep 15
   - curl -X POST http://192.168.186.2/api/reboot
   - ros2 daemon stop
+  - echo "SETUP COMPLETE!!! WAIT FOR CREATE BASE TO REBOOT!" > /home/ubuntu/.cloud_init_status
 """
 
         # 2. Generate network-config
