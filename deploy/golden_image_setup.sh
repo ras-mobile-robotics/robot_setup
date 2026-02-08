@@ -49,7 +49,7 @@ wget https://github.com/turtlebot/turtlebot4_setup/blob/jazzy/scripts/create_upd
 chmod +x create_update.sh
 
 # Setup Create base with new firmware
-# Done in runcmd section of user-data (check generate_configs.py)
+# Done in runcmd section of user-data (check generate_configs.py or need to do it manually through WEB UI)
 # curl -X POST --data-binary @/home/ubuntu/.create_firmware/Create3-I.0.0.FastDDS.swu http://192.168.186.2/api/firmware-update
 
 # change_wifi.py needs sudo priveleges to apply netplan and reboot computer

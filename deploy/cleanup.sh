@@ -23,7 +23,7 @@ sudo rm /etc/ssh/ssh_host_*
 # 5. Copies a sample wifi_config which has the AP mode config as well
 # NOTE: the AP does not have a bot number. That would be generated using the "generate_configs.py"
 # THis is required for changing to AP mode or changing Wifi using change_wifi.sh
-cp wifi_configs_sample.json /home/ubuntu/wifi_configs.json
+cp ~/robot_setup/wifi_configs_sample.json /home/ubuntu/wifi_configs.json
 
 # 6. Clear Shell History, logs and APT cache to save space
 echo "--> Shrinking image size (logs and cache)..."
