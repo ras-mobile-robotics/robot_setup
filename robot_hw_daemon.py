@@ -14,8 +14,7 @@ class RobotController(Node):
     def __init__(self):
         # Get robot namespace from stored file
         robot_id = self.get_robot_id()
-        # namespace = f"robot_{robot_id}"
-        namespace = "" # Global Namespace
+        namespace = f"robot_{robot_id}"
         super().__init__('robot_hw_daemon', namespace=namespace)
 
         # --- Path for TMUX Status ---
