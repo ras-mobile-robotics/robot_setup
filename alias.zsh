@@ -172,3 +172,29 @@ check-discovery-server() {
     # Ping 3 times max with a 1-second timeout per ping
     ping -c 3 -W 1 "$ds_ip"
 }
+
+
+# Sync time
+sync-time() {
+    local TICK=$'\u2713'
+    local CROSS=$'\u2717'
+
+    echo "Stopping NTP service..."
+    sudo timedatectl set-ntp false
+    sleep 2
+
+    echo "Starting NTP service and fetching internet time..."
+    sudo timedatectl set-ntp true
+    
+    # "Settle" time: give the background daemon a moment to reach a server
+    echo "Settling..."
+    sleep 5 
+
+    # Check if successful
+    if timedatectl status | grep -q "System clock synchronized: yes"; then
+        echo "[$TICK] Time synchronized successfully!"
+        date
+    else
+        echo "[$CROSS] Sync failed. Check internet connection or 'systemd-timesyncd' logs."
+    fi
+}
