@@ -2,9 +2,6 @@
 alias sb="source ~/.bashrc"
 alias sw="source ~/ros2_ws/install/setup.bash"
 
-# Update Time
-alias sync-time="sudo ntpdate -u 0.ubuntu.pool.ntp.org"
-
 # Kill the ROS 2 daemon and restart it
 alias rd-restart='ros2 daemon stop; sleep 2; ros2 daemon start'
 
@@ -175,7 +172,7 @@ check-discovery-server() {
 
 
 # Sync time
-sync-time() {
+sync-ntp-time() {
     local TICK=$'\u2713'
     local CROSS=$'\u2717'
 
