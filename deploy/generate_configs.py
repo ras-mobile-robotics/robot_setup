@@ -42,7 +42,10 @@ def generate_configs():
         else:
             eth0_config = f"""dhcp4: no
     addresses: [{lan_ip}/24]
-    gateway4: {args.gateway}
+    routes:
+      - to: default
+        via: {args.gateway}
+        metric: 600
     nameservers:
       addresses: [{dns_list}]"""
 
@@ -62,6 +65,8 @@ chpasswd:
 
 ssh_genkeytypes: ['rsa', 'ecdsa', 'ed25519']
 
+timezone: America/Phoenix
+
 system_info:
   default_user:
     name: ubuntu
@@ -70,51 +75,48 @@ runcmd:
   - test -f /etc/ssh/ssh_host_rsa_key || dpkg-reconfigure openssh-server
   - echo "{bot_id_str}" >| /home/ubuntu/.turtlebot_id
   - chown ubuntu:ubuntu /home/ubuntu/.turtlebot_id
-  - sed -i 's/"ssid": "TurtleBot_AP_"/"ssid": "TurtleBot_AP_{bot_id_int}"/' /home/ubuntu/wifi_configs.json
   - sed -i 's/export ROS_DOMAIN_ID=.*/export ROS_DOMAIN_ID="{bot_id_int}"/' /etc/turtlebot4/setup.bash
   - sed -i 's|export ROBOT_NAMESPACE=.*|export ROBOT_NAMESPACE="{namespace}"|' /etc/turtlebot4/setup.bash
-  - chown ubuntu:ubuntu /home/ubuntu/wifi_configs.json
-  - echo "(1/6) Waiting for create 3 to switch on for the first time..." >| /home/ubuntu/.cloud_init_status
+  - echo "(1/3) Waiting 120 secs for Create 3 to switch on for the first time..." >| /home/ubuntu/.cloud_init_status
   - sleep 120
-  - bash -c 'for i in {{1..10}}; do if ping -c 1 192.168.186.2; then echo "Create 3 Base found!"; break; fi; echo "Waiting for Base... attempt $i"; sleep 5; done'
-  - echo "(2/6) Starting Firmware Upload I.0.0..." >| /home/ubuntu/.cloud_init_status
-  - echo "Starting Firmware Upload I.0.0..."
-  - curl -X POST --data-binary @/home/ubuntu/.create_firmware/Create3-I.0.0.FastDDS.swu http://192.168.186.2/api/firmware-update
-  - echo "Firmware file sent. Waiting for internal flashing..."
-  - echo "(3/6) Firmware file sent. Waiting for internal flashing..." >| /home/ubuntu/.cloud_init_status
-  - sleep 300
   - echo "Verifying firmware version I.0.0.FastDDS is active..."
-  - echo "(4/6) Verifying firmware version I.0.0.FastDDS is active..." >| /home/ubuntu/.cloud_init_status
-  - bash -c 'while ! curl -s http://192.168.186.2/api/about | grep -i "version=.I.0.0.FastDDS."; do echo "Waiting for new firmware... (Check web UI)"; sleep 30; done'
-  - echo "Firmware Verified! Waiting to reboot..."
-  - echo "(5/6) Firmware Verified! Waiting to reboot..." >| /home/ubuntu/.cloud_init_status
-  - sleep 65
-  - bash -c 'for i in {{1..10}}; do if ping -c 1 192.168.186.2; then echo "Create 3 Base found!"; break; fi; echo "Waiting for Base... attempt $i"; sleep 5; done'
+  - echo "(2/3) Verifying firmware version I.0.0.FastDDS is active..." >| /home/ubuntu/.cloud_init_status
+  - bash -c "for i in {{1..20}}; do if ping -c 1 -W 1 192.168.186.2 > /dev/null && curl -sk http://192.168.186.2/api/about | grep -qi 'I.0.0.FastDDS'; then echo 'Create 3 Base I.0.0 found'; break; fi; echo 'Waiting for Base... attempt \$i'; sleep 5; done"
   - echo "Applying ROS 2 Discovery Server Config..."
-  - echo "(6/6) Applying ROS 2 Discovery Server Config.." >| /home/ubuntu/.cloud_init_status
+  - echo "(3/3) Applying ROS 2 Discovery Server Config.." >| /home/ubuntu/.cloud_init_status
   - curl -X POST -d "ros_domain_id={bot_id_int}&ros_namespace={namespace}/_do_not_use&rmw_implementation=rmw_fastrtps_cpp&fast_discovery_server_value=192.168.186.3:11811&fast_discovery_server_enabled=true" http://192.168.186.2/ros-config-save-main
   - sleep 15
   - curl -X POST http://192.168.186.2/api/reboot
   - ros2 daemon stop
-  - echo "SETUP COMPLETE!!! WAIT FOR CREATE BASE TO REBOOT!" > /home/ubuntu/.cloud_init_status
+  - echo "SETUP COMPLETE!!! WAIT FOR 90 SECS CREATE BASE TO REBOOT!" > /home/ubuntu/.cloud_init_status
 """
 
         # 2. Generate network-config
         network_config_content = f"""version: 2
+renderer: NetworkManager
 ethernets:
   eth0:
     {eth0_config}
     dhcp-identifier: mac
+    optional: true
+  usb0:
+    addresses: [192.168.186.3/24]
+    dhcp4: no
 wifis:
   wlan0:
     dhcp4: no
     addresses: [{wifi_ip}/24]
-    gateway4: {args.gateway}
+    routes:
+      - to: default
+        via: {args.gateway}
+        metric: 50
     nameservers:
       addresses: [{dns_list}]
     access-points:
       "{args.ssid}":
-        password: "{args.password}"
+        auth:
+            key-management: "psk"
+            password: "{args.password}"
 """
 
         with open(f"{folder}/user-data", "w") as f:

@@ -1,5 +1,7 @@
 #!/bin/bash
 # Run this on your master Robot before copying over to other robots
+@ todo
+- clean git config
 
 # 1. Clean cloud-init
 sudo cloud-init clean --logs
@@ -19,6 +21,9 @@ sudo ln -sf /etc/machine-id /var/lib/dbus/machine-id
 # This ensures each robot generates its own unique SSH identity.
 echo "--> Removing SSH host keys..."
 sudo rm /etc/ssh/ssh_host_*
+# Remove known hosts that previosly ssh'ed into the machine
+sudo rm -rf ~/.ssh/known_hosts
+sudo rm -rf ~/.ssh/known_hosts.old
 
 # 5. Copies a sample wifi_config which has the AP mode config as well
 # NOTE: the AP does not have a bot number. That would be generated using the "generate_configs.py"
