@@ -126,7 +126,7 @@ class RobotHWDaemon(Node):
     def full_shutdown_sequence(self):
         print(f"{TermCol.WARN}[SHUTDOWN]{TermCol.END} Initializing Safe-Idle...")
 
-        
+
         self.generate_report() # Log stats one last time
 
         # Undock robot
