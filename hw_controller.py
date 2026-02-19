@@ -35,12 +35,6 @@ class RobotHWDaemon(Node):
         super().__init__('robot_hw_daemon', namespace=self.namespace)
         print(f"{TermCol.BOLD}{TermCol.INFO}[INIT]{TermCol.END} Controller Active: {TermCol.BOLD}{self.namespace}{TermCol.END}")
 
-<<<<<<< HEAD
-        # 3. Setup Clients
-        self.undock_client = ActionClient(self, Undock, f'/{self.namespace}/undock')
-        self.dock_client = ActionClient(self, Dock, f'/{self.namespace}/dock')
-        self.power_client = self.create_client(RobotPower, f'/{self.namespace}/robot_power')
-=======
         # 3. Topic/Service Names with explicit Namespacing
         self.undock_action_name = f'/{self.namespace}/undock'
         self.dock_action_name = f'/{self.namespace}/dock'
@@ -52,7 +46,6 @@ class RobotHWDaemon(Node):
         self.undock_client = ActionClient(self, Undock, self.undock_action_name)
         self.dock_client = ActionClient(self, Dock, self.dock_action_name)
         self.power_client = self.create_client(RobotPower, self.power_service_name)
->>>>>>> 95530d1 (update namespace)
         
         self.latest_battery = None
         self.batt_sub = self.create_subscription(BatteryState, self.batt_topic, self._batt_cb, 10)
@@ -125,20 +118,15 @@ class RobotHWDaemon(Node):
 
     def full_shutdown_sequence(self):
         print(f"{TermCol.WARN}[SHUTDOWN]{TermCol.END} Initializing Safe-Idle...")
-
-
         self.generate_report() # Log stats one last time
 
-        # Undock robot
         self.step_undock()
-        time.sleep(7)
+        time.sleep(7) 
 
-        # Double sync
         self.step_sync()
         time.sleep(1)
         self.step_sync() 
-
-        # Kill Power
+        
         self.step_base_power()
 
 def main(args=None):
