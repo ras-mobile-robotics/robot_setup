@@ -27,9 +27,9 @@ class RobotHWDaemon(Node):
         self.logger.info(f"--- Controller Active: {self.namespace} ---")
 
         # 3. Setup Clients
-        self.undock_client = ActionClient(self, Undock, 'undock')
-        self.dock_client = ActionClient(self, Dock, 'dock')
-        self.power_client = self.create_client(RobotPower, 'robot_power')
+        self.undock_client = ActionClient(self, Undock, f'/{self.namespace}/undock')
+        self.dock_client = ActionClient(self, Dock, f'/{self.namespace}/dock')
+        self.power_client = self.create_client(RobotPower, f'/{self.namespace}/robot_power')
         
         # Internal storage for report
         self.latest_battery = None
