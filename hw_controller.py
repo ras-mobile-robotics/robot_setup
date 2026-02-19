@@ -13,7 +13,6 @@ from irobot_create_msgs.action import Dock, Undock
 from irobot_create_msgs.srv import RobotPower
 from sensor_msgs.msg import BatteryState
 
-# Terminal Colors for Robot Output
 class TermCol:
     OK = '\033[92m'
     INFO = '\033[94m'
@@ -24,25 +23,25 @@ class TermCol:
 
 class RobotHWDaemon(Node):
     def __init__(self):
-        # 1. Setup Logging
+        # 1. Setup Logging and Start Timer
+        self.start_time = time.time()
         self.log_file = os.path.expanduser("~/.last_shutdown_log")
+        self.runtime_log = os.path.expanduser("~/robot_setup/total_runtime.log")
         self.setup_logger()
 
-        # 2. Get Namespace
         self.robot_id = self.get_robot_id()
         self.namespace = f"robot_{self.robot_id}"
         
         super().__init__('robot_hw_daemon', namespace=self.namespace)
-        print(f"{TermCol.BOLD}{TermCol.INFO}[INIT]{TermCol.END} Controller Active: {TermCol.BOLD}{self.namespace}{TermCol.END}")
+        print(f"{TermCol.BOLD}{TermCol.INFO}[INIT]{TermCol.END} Controller Active: {self.namespace}")
 
-        # 3. Topic/Service Names with explicit Namespacing
+        # 2. Topic/Service Names
         self.undock_action_name = f'/{self.namespace}/undock'
         self.dock_action_name = f'/{self.namespace}/dock'
         self.power_service_name = f'/{self.namespace}/robot_power'
         self.batt_topic = f'/{self.namespace}/battery_state'
 
-        # 4. Setup Clients
-        print(f"{TermCol.INFO}[TOPIC]{TermCol.END} Tracking {self.batt_topic}")
+        # 3. Setup Clients
         self.undock_client = ActionClient(self, Undock, self.undock_action_name)
         self.dock_client = ActionClient(self, Dock, self.dock_action_name)
         self.power_client = self.create_client(RobotPower, self.power_service_name)
@@ -68,67 +67,61 @@ class RobotHWDaemon(Node):
                 return f.read().strip()
         return "XX"
 
+    def log_runtime(self):
+        """Calculates and saves the duration of this session."""
+        duration = time.time() - self.start_time
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(self.runtime_log, "a") as f:
+            f.write(f"{timestamp} | Duration: {round(duration, 2)} seconds\n")
+
     def generate_report(self):
-        """Gathers stats and prints as JSON"""
-        # Spin to catch battery message
         timeout = time.time() + 3.0
         while self.latest_battery is None and time.time() < timeout:
             rclpy.spin_once(self, timeout_sec=0.1)
 
-        # Get System Stats
+        # Calculate "Total Accumulated Hours" from the log file
+        total_seconds = 0
+        if os.path.exists(self.runtime_log):
+            with open(self.runtime_log, "r") as f:
+                for line in f:
+                    if "Duration:" in line:
+                        try:
+                            total_seconds += float(line.split("Duration:")[1].split()[0])
+                        except: pass
+
         try:
             with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
                 temp = int(f.read()) / 1000.0
         except: temp = 0.0
         
-        uptime = subprocess.check_output(["uptime", "-p"]).decode().strip()
-        disk = subprocess.check_output(["df", "-h", "/"]).decode().split('\n')[1].split()[4]
-
         report = {
             "robot_id": self.robot_id,
             "battery_pct": round(self.latest_battery, 1) if self.latest_battery is not None else "N/A",
             "cpu_temp_c": temp,
-            "uptime": uptime,
-            "disk_usage": disk,
+            "session_runtime_sec": round(time.time() - self.start_time, 2),
+            "weekly_total_hrs": round(total_seconds / 3600.0, 2),
             "timestamp": time.strftime("%H:%M:%S")
         }
         print(f"REPORT_DATA:{json.dumps(report)}")
 
-    def step_undock(self):
-        print(f"{TermCol.INFO}[ACTION]{TermCol.END} Calling Undock on {self.undock_action_name}")
+    def full_shutdown_sequence(self):
+        print(f"{TermCol.WARN}[SHUTDOWN]{TermCol.END} Logging runtime and powering off...")
+        self.log_runtime() # Save the hours before the power is cut
+        
+        # Hardware sequence
         if not self.undock_client.wait_for_server(timeout_sec=5.0):
-            return False
-        goal_msg = Undock.Goal()
-        future = self.undock_client.send_goal_async(goal_msg)
-        rclpy.spin_until_future_complete(self, future)
-        return True
+            print(f"{TermCol.FAIL}[ERROR]{TermCol.END} Undock server offline.")
+        else:
+            goal_msg = Undock.Goal()
+            future = self.undock_client.send_goal_async(goal_msg)
+            rclpy.spin_until_future_complete(self, future)
+            time.sleep(7) 
 
-    def step_sync(self):
-        print(f"{TermCol.INFO}[ACTION]{TermCol.END} Syncing SD Card...")
         subprocess.run(["sync"], check=True)
-        return True
-
-    def step_base_power(self):
-        print(f"{TermCol.FAIL}[POWER]{TermCol.END} Killing base power: {self.power_service_name}")
         if self.power_client.wait_for_service(timeout_sec=5.0):
             req = RobotPower.Request()
             self.power_client.call_async(req)
-            return True
-        return False
-
-    def full_shutdown_sequence(self):
-        print(f"{TermCol.WARN}[SHUTDOWN]{TermCol.END} Initializing Safe-Idle...")
-        self.generate_report() # Log stats one last time
-
-        self.step_undock()
-        time.sleep(7) 
-
-        self.step_sync()
-        time.sleep(1)
-        self.step_sync() 
         
-        self.step_base_power()
-
 def main(args=None):
     rclpy.init(args=args)
     daemon = RobotHWDaemon()
@@ -139,8 +132,6 @@ def main(args=None):
             daemon.full_shutdown_sequence()
         elif command == "report":
             daemon.generate_report()
-        else:
-            print(f"Unknown command: {command}")
     
     if rclpy.ok():
         rclpy.shutdown()
